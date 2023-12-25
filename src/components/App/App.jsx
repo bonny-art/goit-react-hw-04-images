@@ -1,4 +1,4 @@
-import React, { Component } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { nanoid } from 'nanoid';
 
 import * as ImageService from 'services/image-service';
@@ -13,111 +13,104 @@ import {
 } from 'components';
 import { AppStyled, BigImageStyled } from './App.styled';
 
-export class App extends Component {
-  state = {
-    images: [],
-    query: '',
-    page: 1,
-    err: null,
-    isButtonVisible: false,
-    showModal: false,
-    selectedImageId: '',
-    status: null,
+export const App = () => {
+  const [images, setImages] = useState([]);
+  const [query, setQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const [err, setErr] = useState(null);
+  const [isButtonVisible, setIsButtonVisible] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [selectedImageId, setSelectedImageId] = useState('');
+  const [status, setStatus] = useState(null);
+
+  useEffect(() => {
+    page > 1 &&
+      // setTimeout(() => {
+      scrollDown();
+    // }, 500);
+  }, [page]);
+
+  useEffect(() => {
+    const getImages = async () => {
+      try {
+        const { hits, totalHits } = await ImageService.getImages(query, page);
+
+        hits.map(hit => (hit.id = nanoid()));
+
+        setImages(i => [...i, ...hits]);
+        setIsButtonVisible(page < Math.ceil(totalHits / ImageService.PER_PAGE));
+        setStatus(totalHits === 0 ? 'rejected' : 'resolved');
+        setErr(
+          totalHits === 0 ? `There is no images on query: ${query}` : null
+        );
+      } catch (error) {
+        setErr(error);
+        setStatus(error);
+      }
+    };
+
+    query && getImages();
+  }, [query, page]);
+
+  const handleSearch = query => {
+    setQuery(query);
+    setImages([]);
+    setPage(1);
+    setErr(null);
+    setStatus('pending');
   };
 
-  componentDidUpdate(_, prev) {
-    if (prev.query !== this.state.query || prev.page !== this.state.page) {
-      this.getImages();
-    }
-  }
-
-  handleSearch = query => {
-    this.setState({ query, images: [], page: 1, err: null, status: 'pending' });
-  };
-
-  scrollDown = () => {
+  const scrollDown = () => {
     window.scroll({
       top: window.scrollY + (window.innerHeight - (72 + 40 + 24 + 16)) + 2,
       behavior: 'smooth',
     });
   };
 
-  getImages = async () => {
-    const { query, page } = this.state;
-
-    try {
-      const { hits, totalHits } = await ImageService.getImages(query, page);
-
-      hits.map(hit => (hit.id = nanoid()));
-      this.setState(
-        prev => ({
-          images: [...prev.images, ...hits],
-          isButtonVisible:
-            this.state.page < Math.ceil(totalHits / ImageService.PER_PAGE),
-          status: totalHits === 0 ? 'rejected' : 'resolved',
-          err: totalHits === 0 ? `There is no images on query: ${query}` : null,
-        }),
-        () => {
-          setTimeout(() => {
-            this.scrollDown();
-          }, 500);
-        }
-      );
-    } catch (error) {
-      this.setState({ err: error, status: 'rejected' });
-    }
+  const loadNextPage = () => {
+    setPage(p => p + 1);
   };
 
-  loadNextPage = () => {
-    this.setState(prevState => ({ page: prevState.page + 1 }));
+  const showBigImage = id => {
+    setSelectedImageId(id);
   };
 
-  toggleModal = () => {
-    this.setState(prevState => ({
-      selectedImageId: prevState.showModal ? '' : prevState.selectedImageId,
-      showModal: !prevState.showModal,
-    }));
-  };
+  const toggleModal = useCallback(() => {
+    setSelectedImageId(s => (showModal ? '' : s));
+    setShowModal(s => !s);
+  }, [showModal]);
 
-  showBigImage = id => {
-    this.setState({ selectedImageId: id }, () => this.toggleModal());
-  };
+  useEffect(() => {
+    selectedImageId && toggleModal();
+  }, [selectedImageId, toggleModal]);
 
-  render() {
-    const { images, showModal, isButtonVisible, selectedImageId, status, err } =
-      this.state;
+  const selectedImage = images.find(image => image.id === selectedImageId);
 
-    const selectedImage = images.find(image => image.id === selectedImageId);
+  return (
+    <>
+      <AppStyled>
+        <Searchbar onSubmit={handleSearch} />
 
-    return (
-      <>
-        <AppStyled>
-          <Searchbar onSubmit={this.handleSearch} />
+        {status === 'pending' && <Loader />}
 
-          {status === 'pending' && <Loader />}
+        {status === 'rejected' && <ErrorMessage message={err} />}
 
-          {status === 'rejected' && <ErrorMessage message={err} />}
-
-          {status === 'resolved' && (
-            <>
-              <ImageGallery
-                imageList={images}
-                showBigImage={this.showBigImage}
-              />
-              {isButtonVisible && <Button onClick={this.loadNextPage} />}
-            </>
-          )}
-        </AppStyled>
-
-        {showModal && selectedImageId && (
-          <Modal onClose={this.toggleModal}>
-            <BigImageStyled
-              src={selectedImage.largeImageURL}
-              alt={selectedImage.tags}
-            />
-          </Modal>
+        {status === 'resolved' && (
+          <>
+            <ImageGallery imageList={images} showBigImage={showBigImage} />
+            {isButtonVisible && <Button onClick={loadNextPage} />}
+          </>
         )}
-      </>
-    );
-  }
-}
+      </AppStyled>
+
+      {showModal && selectedImageId && (
+        <Modal onClose={toggleModal}>
+          <BigImageStyled
+            src={selectedImage.largeImageURL}
+            alt={selectedImage.tags}
+          />
+        </Modal>
+      )}
+    </>
+  );
+};
