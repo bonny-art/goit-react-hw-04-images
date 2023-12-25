@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { nanoid } from 'nanoid';
 
 import * as ImageService from 'services/image-service';
@@ -25,9 +25,9 @@ export const App = () => {
 
   useEffect(() => {
     page > 1 &&
-      // setTimeout(() => {
-      scrollDown();
-    // }, 500);
+      setTimeout(() => {
+        scrollDown();
+      }, 500);
   }, [page]);
 
   useEffect(() => {
@@ -73,16 +73,13 @@ export const App = () => {
 
   const showBigImage = id => {
     setSelectedImageId(id);
+    toggleModal();
   };
 
-  const toggleModal = useCallback(() => {
+  const toggleModal = () => {
     setSelectedImageId(s => (showModal ? '' : s));
     setShowModal(s => !s);
-  }, [showModal]);
-
-  useEffect(() => {
-    selectedImageId && toggleModal();
-  }, [selectedImageId, toggleModal]);
+  };
 
   const selectedImage = images.find(image => image.id === selectedImageId);
 
