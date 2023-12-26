@@ -25,9 +25,9 @@ export const App = () => {
 
   useEffect(() => {
     page > 1 &&
-      setTimeout(() => {
-        scrollDown();
-      }, 500);
+      // setTimeout(() => {
+      scrollDown();
+    // }, 500);
   }, [page]);
 
   useEffect(() => {
