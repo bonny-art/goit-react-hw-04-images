@@ -24,11 +24,11 @@ export const App = () => {
   const [status, setStatus] = useState(null);
 
   useEffect(() => {
-    page > 1 &&
-      // setTimeout(() => {
-      scrollDown();
-    // }, 500);
-  }, [page]);
+    images.length > 0 &&
+      setTimeout(() => {
+        scrollDown();
+      }, 500);
+  }, [images]);
 
   useEffect(() => {
     const getImages = async () => {
